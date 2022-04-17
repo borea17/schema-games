@@ -845,7 +845,6 @@ class BreakoutEngine(gym.Env):
             if ball.is_entity:
                 for state, eid in self.parse_object_into_pixels(ball):
                     entity_states[eid] = state
-
         # Paddle ##############################################################
         if self.paddle.is_entity:
             for state, eid in self.parse_object_into_pixels(self.paddle):
@@ -1429,3 +1428,60 @@ class BreakoutEngine(gym.Env):
             Position as (row, col) indices.
         """
         return (self.height - 1 - position[1], position[0])
+
+    def convert_entity_states_to_image(self, entity_states):
+        """
+        helper function to visualize a subset of entities states 
+
+        Parameters:
+        -----------
+        entity_states : {int: {
+                ('position', (int, int)): 0.0,
+                ('shape', (int, int)): 0.0,
+                ('color', (int, int, int)): 0.0,
+            }} dictionary container entity states that shall be visualized
+
+        Returns
+        -------
+        image : numpy.ndarray[:, :, :] (dtype=numpy.uint8)
+            RGB image in the (r, c, 3) unsigned 8-byte integer format, with
+            color values in (0, 255).
+        """
+        image = self.get_background_image()
+
+        for obj in self.walls + self.bricks + self.miscellaneous:
+            if not isinstance(obj, MomentumObject) and obj.is_entity:
+                parsed_pixels = self.parse_object_into_pixels(obj)
+                all_eids = [elem[1] for elem in parsed_pixels]
+                eids_in_entity_states = [eid in entity_states.keys() for eid in all_eids]
+                if all(eids_in_entity_states):
+                    self.render_object(image, obj)
+        
+        for obj in self.miscellaneous:
+            if isinstance(obj, MomentumObject) and obj.is_entity:
+                parsed_pixels = self.parse_object_into_pixels(obj)
+                all_eids = [elem[1] for elem in parsed_pixels]
+                eids_in_entity_states = [eid in entity_states.keys() for eid in all_eids]
+                if all(eids_in_entity_states):
+                    self.render_object(image, obj)
+
+        # Render the paddle
+        if self.paddle.visible and self.paddle.is_entity:
+            parsed_pixels = self.parse_object_into_pixels(self.paddle)
+            all_eids = [elem[1] for elem in parsed_pixels]
+            eids_in_entity_states = [eid in entity_states.keys() for eid in all_eids]
+            if all(eids_in_entity_states):
+                self.render_object(image, self.paddle)
+
+        # Render the balls (always last in order to always be visible)
+        for ball in self.balls:
+            if ball.is_entity:
+                parsed_pixels = self.parse_object_into_pixels(ball)
+                all_eids = [elem[1] for elem in parsed_pixels]
+                eids_in_entity_states = [eid in entity_states.keys() for eid in all_eids]
+                if all(eids_in_entity_states):
+                    self.render_object(image, ball)
+
+        image = image[:, ::-1, :].transpose(1, 0, 2)
+
+        return image
