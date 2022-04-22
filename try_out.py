@@ -1,25 +1,27 @@
 from schema_games.breakout import games
 
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
-# from gym.utils.play import play
-
-environment_class = "StandardBreakout"
 env_args = {"return_state_as_image": False, "debugging": False}
-
 env = games.StandardBreakout(**env_args)
 state = env.reset()
+env.balls[0].velocity_index = env.velocity_to_index[(0, 1)]
 
 
 possible_shapes = []
 possible_positions = []
 positions_x = []
 positions_y = []
+colors = []
 for elem in state:
     position = list(state[elem])[0][1]
     position_x = position[0]
     position_y = position[1]
     shape = list(state[elem])[1][1]
+    color = list(state[elem])[2][1]
+
     if shape not in possible_shapes:
         possible_shapes.append(shape)
     if position not in possible_positions:
@@ -28,44 +30,27 @@ for elem in state:
         positions_x.append(position_x)
     if position_y not in positions_y:
         positions_y.append(position_y)
+    if color not in colors:
+        colors.append(color)
 
+fig = plt.figure(figsize=(14, 7))
 
-positions_x.sort()
-positions_y.sort()
-
-print("Shapes are ", possible_shapes)
-print(f"There are {len(possible_positions)} positions")
-print("X positions", positions_x)
-print("Y positions", positions_y)
-
+ax_1 = plt.subplot(1, 2, 1)
+plt.title("Current State")
+ax_2 = plt.subplot(1, 2, 2)
+plt.title("Predicted State")
 
 ############### PLAYING #################
-for i in range(10):
-    action = 0
+def animate(i):
+    action = np.random.randint(3)
     state, reward, done, new_state = env.step(action)
+    img = env.convert_entity_states_to_image(state)
+    ax_1.imshow(img)
 
-    keys_to_select = list(range(500))
-    sub_state = {}
-    for key, value in state.items():
-        if key in keys_to_select:
-            sub_state[key] = value
-    img = env._get_image()
-    
-    img = env.convert_entity_states_to_image(sub_state)
+    img = env.get_img_from_entity_states(state)
+    ax_2.imshow(img)
 
-    import pdb 
-    pdb.set_trace()
-
-    # state = env.step(0)
-    #state = env.step(0)
+animator = animation.FuncAnimation(fig, animate, interval=1)
+plt.show()
 
 
-def preprocessing(entity_states_over_time):
-    """
-                
-
-
-        `given a dataset of entity states over time, we preprocess the entity states into 
-         a representation that is more convenient for learning`
-    """
-    pass

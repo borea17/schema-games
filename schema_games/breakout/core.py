@@ -1,4 +1,5 @@
 import copy
+from turtle import position
 import numpy as np
 import random
 import warnings
@@ -8,7 +9,7 @@ import gym
 from gym.envs.classic_control import rendering
 
 from schema_games.printing import red, blue, yellow, green, cyan, purple
-from schema_games.utils import blockedrange, offset_nzis_from_position
+from schema_games.utils import blockedrange, offset_nzis_from_position, shape_to_nzis
 from schema_games.breakout.objects import (
     BreakoutObject,
     Ball,
@@ -326,7 +327,6 @@ class BreakoutEngine(gym.Env):
         self.bricks = []
         self.lost_balls = []
         self.balls = [Ball(position=(bx, by)) for _ in range(self.num_balls)]
-        print("shape", self.initial_paddle_shape, type(self.initial_paddle_shape))
         self.paddle = Paddle((px, py), shape=self.initial_paddle_shape)
 
         self.layout()
@@ -1412,6 +1412,23 @@ class BreakoutEngine(gym.Env):
                 return False
         return True
 
+    def rc2xy(self, rc):
+        """
+        Converts entity states' (row, column) coordinates into its environment's
+        native right-handed coordinates (x, y).
+
+        Parameters:
+        -----------
+        rc : (int, int)
+            Position as (row, col) indices.
+
+        Returns:
+        --------
+        position : (int, int)
+            Position as (x, y) indices.
+        """
+        return (rc[1], self.height - 1 - rc[0])
+
     def xy2rc(self, position):
         """
         Converts this environment's native right-handed coordinates (x, y) into
@@ -1432,6 +1449,8 @@ class BreakoutEngine(gym.Env):
     def convert_entity_states_to_image(self, entity_states):
         """
         helper function to visualize a subset of entities states 
+
+        Note: this function cannot be used to generate images of the future
 
         Parameters:
         -----------
@@ -1484,4 +1503,33 @@ class BreakoutEngine(gym.Env):
 
         image = image[:, ::-1, :].transpose(1, 0, 2)
 
+        return image
+
+    def get_img_from_entity_states(self, entity_states):
+        image = self.get_background_image()
+        for entity_state_dict in list(entity_states.values()):
+            for attribute_name, attribute_val in entity_state_dict.keys():
+                if attribute_name == "position":
+                    position_rc = attribute_val
+                    position_xy = self.rc2xy(position_rc)
+                elif attribute_name == "shape":
+                    shape = attribute_val
+                elif attribute_name == "color":
+                    color = attribute_val
+            if shape == (0, 0):
+                # wall or ball
+                add_x, add_y = 1, 1
+            elif shape == (4, 2):
+                # bricks
+                add_x, add_y = 0, 0
+            else:
+                # paddle
+                add_x, add_y = 1, 0
+            if color == (0, 0, 0):
+                continue
+            s_x = np.s_[position_xy[0] - shape[0]:position_xy[0] + shape[0] + add_x]
+            s_y = np.s_[position_xy[1] - shape[1]:position_xy[1] + shape[1] + add_y]
+            image[s_x, s_y, :] = np.array(color).reshape(1, 3)
+
+        image = image[:, ::-1, :].transpose(1, 0, 2)
         return image
